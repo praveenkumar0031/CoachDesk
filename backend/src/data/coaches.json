@@ -1,7 +1,7 @@
 [
   {
-    "id": "2",
-    "name": "John Doe",
+    "id": "1",
+    "name": "duvk",
     "email": "john@example.com",
     "category": "Fitness",
     "rating": 4,
@@ -10,20 +10,10 @@
   },
   {
     "id": "3",
-    "cid": "77f5bdce-ad31-4dc0-a2d3-e8804768470e",
     "name": "sum",
     "email": "john@example.com",
     "rating": 4,
     "status": "active",
     "createdAt": "2025-10-29T09:27:34.630Z"
-  },
-  {
-    "id": "4",
-    "cid": "a335990a-ce0c-4398-84c0-0bc67d32274f",
-    "name": "sum",
-    "email": "john@example.com",
-    "rating": 4,
-    "status": "active",
-    "createdAt": "2025-10-29T09:27:46.717Z"
   }
 ]
