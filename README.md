@@ -1,3 +1,19 @@
+A Mini Admin Panel for managing Coaches (CRUD UI + filtering + rating + status toggle).
+
+Tech Stack:
+
+⚛️ React + TypeScript (Vite)
+
+💅 TailwindCSS for styling
+
+🔄 React Query (or Zustand) for data fetching/state
+
+🎨 Shadcn/UI for clean UI components (optional but recommended)
+
+🔔 Toast notifications via react-hot-toast
+
+
+
 | Action          | Method | URL                                                                |
 | --------------- | ------ | ------------------------------------------------------------------ |
 | Get all coaches | GET    | [http://localhost:5000/coaches](http://localhost:5000/coaches)     |
