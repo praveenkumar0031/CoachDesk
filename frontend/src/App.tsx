@@ -19,7 +19,7 @@ const App: React.FC = () => {
         </main>
 
         <footer className="text-center py-4 text-gray-500 text-sm">
-          © {new Date().getFullYear()} Coach Desk | Built with ❤️ by Praveen
+          © {new Date().getFullYear()} Coach Desk | Developed by Praveen
         </footer>
       </div>
     </Router>

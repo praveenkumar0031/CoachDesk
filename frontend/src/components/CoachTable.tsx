@@ -18,7 +18,7 @@ const CoachTable: React.FC<Props> = ({
 }) => {
   return (
     <table className="w-full border rounded text-center">
-      <thead className="bg-gray-100">
+      <thead className="bg-gradient-to-r from-blue-100 to-indigo-100">
         <tr>
           <th className="border p-2">ID</th>
           <th className="border p-2">Name</th>
@@ -54,7 +54,7 @@ const CoachTable: React.FC<Props> = ({
               <td className="border p-2 space-x-2">
                 <button
                   onClick={() => onEdit(c)}
-                  className="bg-yellow-400 text-white px-3 py-1 rounded hover:bg-yellow-500"
+                  className="bg-indigo-500 text-white  px-3 py-1 rounded hover:bg-indigo-800"
                 >
                   Edit
                 </button>
@@ -69,7 +69,7 @@ const CoachTable: React.FC<Props> = ({
           ))
         ) : (
           <tr>
-            <td colSpan={7} className="border p-4 text-gray-500">
+            <td colSpan={7} className="border-gray-500 p-4 text-red-500">
               No coaches found.
             </td>
           </tr>
