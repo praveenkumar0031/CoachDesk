@@ -9,11 +9,30 @@
     "createdAt": "2025-10-29T08:00:00Z"
   },
   {
-    "id": "3",
-    "name": "sum",
+    "id": 2,
+    "name": "John Doe",
     "email": "john@example.com",
+    "category": "Fitness",
     "rating": 4,
     "status": "active",
-    "createdAt": "2025-10-29T09:27:34.630Z"
+    "createdAt": "2025-10-29T12:00:00Z"
+  },
+  {
+    "id": 3,
+    "name": "nk",
+    "email": "nk@example.com",
+    "category": "swiming",
+    "rating": 2,
+    "status": "active",
+    "createdAt": "2025-10-30T03:46:25.901Z"
+  },
+  {
+    "id": 4,
+    "name": "ar",
+    "email": "ar@example.com",
+    "category": "swiming",
+    "rating": 5,
+    "status": "inactive",
+    "createdAt": "2025-10-30T03:46:51.687Z"
   }
 ]
