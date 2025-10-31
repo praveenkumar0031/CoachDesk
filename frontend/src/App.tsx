@@ -6,11 +6,12 @@ const App: React.FC = () => {
   return (
     <Router>
       <div className="min-h-screen bg-gray-100 text-gray-900">
-        <header className="bg-blue-700 text-white p-4 shadow">
-          <h1 className="text-xl font-semibold text-center">
-            🧑‍🏫 Coach Desk Admin Panel
-          </h1>
-        </header>
+       <header className="bg-blue-700 text-white p-4 shadow flex items-center justify-center gap-3">
+  
+  <h1 className="text-xl font-semibold text-center">
+     Coach Management-Admin Panel
+  </h1>
+</header>
 
         <main className="max-w-6xl mx-auto p-6">
           <Routes>

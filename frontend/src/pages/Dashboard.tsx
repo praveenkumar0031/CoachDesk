@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import Loading from "../components/Loading";
+import log from "../assets/log.jpeg";
 
 import {
   getCoaches,
@@ -61,7 +62,7 @@ const Dashboard: React.FC = () => {
     ...categories.map((cat) => ({ value: cat, label: cat })),
   ];
 
-  // ✅ Fetch all coaches (with loader)
+  // Fetch all coaches (with loader)
   const fetchCoaches = async () => {
     setLoading(true);
     try {
@@ -78,13 +79,13 @@ const Dashboard: React.FC = () => {
     } catch (error) {
       console.error("Error fetching coaches:", error);
     } finally {
-      setLoading(false); // ✅ Stop loader after fetch
+      setLoading(false); //  Stop loader after fetch
     }
   };
 
   useEffect(() => {
     fetchCoaches();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    
   }, [filters]);
 
   const handleDelete = async (id: number) => {
@@ -153,7 +154,18 @@ const Dashboard: React.FC = () => {
         </div>
       )}
 
-      <h1 className="text-2xl font-bold mb-4">Coach Management</h1>
+      
+      <div className="flex items-center gap-3 mb-6">
+  <img
+    src={log}
+    alt="CoachDesk Logo"
+    className="w-12 h-12 rounded-full border border-gray-300 shadow-sm"
+  />
+  <h1 className="text-2xl font-bold text-blue-700 flex items-center">
+    Coach Desk
+  </h1>
+</div>
+
 
       {/* 🔍 Filter Bar */}
       <div className="flex flex-wrap gap-3 mb-4 items-center">
