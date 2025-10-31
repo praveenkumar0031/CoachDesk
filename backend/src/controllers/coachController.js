@@ -1,190 +1,233 @@
-const { readData, writeData, database } = require('../config/db.js'); // Assuming db.js is in ../config/
-const COACHES_COLLECTION = 'coaches'; // Define the collection name here or import from db.js
+const { database } = require('../config/db.js'); // Database must now be the Realtime Database instance
+const COACHES_COLLECTION = 'coaches'; // Root node name in RTDB
 
 
-// ✅ GET all coaches with filtering, pagination, and sorting
-const getCoaches = async (req, res) => { // Made async
-  try {
-    let coaches = await readData(); // Await the asynchronous readData() call
+/**
+ * @desc Get all coaches with client-side filtering, pagination, and sorting
+ * @route GET /api/coaches
+ * @access Public
+ */
+const getCoaches = async (req, res) => {
+    try {
+        // 1. Fetch all data from the /coaches node in RTDB
+        const snapshot = await database.ref(COACHES_COLLECTION).once('value');
+        let coaches = [];
 
-    // Extract query parameters
-    const {
-      status,
-      category,
-      rating,
-      page = 1,
-      limit = 5,
-      sort,
-      order = 'asc'
-    } = req.query;
+        // Convert the object/snapshot structure into an array of coaches
+        snapshot.forEach(childSnapshot => {
+            // RTDB uses .key for the ID and .val() for the data
+            coaches.push({ 
+                id: childSnapshot.key, 
+                ...childSnapshot.val() 
+            });
+        });
 
-    // ---- FILTER LOGIC (still client-side for simplicity, but ideally done with Firestore queries) ----
-    if (status) {
-      coaches = coaches.filter(c => c.status && c.status.toLowerCase() === status.toLowerCase());
+        // Extract query parameters
+        const {
+            status,
+            category,
+            rating,
+            page = 1,
+            limit = 5,
+            sort,
+            order = 'asc'
+        } = req.query;
+
+        // ---- FILTER LOGIC (client-side) ----
+        if (status) {
+            coaches = coaches.filter(c => c.status && c.status.toLowerCase() === status.toLowerCase());
+        }
+
+        if (category) {
+            coaches = coaches.filter(c =>
+                c.category && c.category.toLowerCase().includes(category.toLowerCase())
+            );
+        }
+
+        if (rating) {
+            // Ensure rating exists and is a number before filtering
+            coaches = coaches.filter(c => typeof c.rating === 'number' && c.rating >= Number(rating));
+        }
+
+        // ---- SORTING LOGIC (client-side) ----
+        const sortField = sort || 'id'; 
+
+        coaches.sort((a, b) => {
+            const valA = typeof a[sortField] === 'string' ? a[sortField].toLowerCase() : a[sortField];
+            const valB = typeof b[sortField] === 'string' ? b[sortField].toLowerCase() : b[sortField];
+
+            if (valA < valB) return order === 'asc' ? -1 : 1;
+            if (valA > valB) return order === 'asc' ? 1 : -1;
+            return 0;
+        });
+
+        // ---- PAGINATION LOGIC ----
+        const pageNum = Number(page);
+        const limitNum = Number(limit);
+        const startIndex = (pageNum - 1) * limitNum;
+        const endIndex = startIndex + limitNum;
+
+        const paginated = coaches.slice(startIndex, endIndex);
+
+        // ---- META INFO ----
+        const totalItems = coaches.length;
+        const totalPages = Math.ceil(totalItems / limitNum);
+
+        res.json({
+            page: pageNum,
+            limit: limitNum,
+            totalItems,
+            totalPages,
+            sortBy: sortField,
+            order,
+            data: paginated
+        });
+    } catch (error) {
+        console.error("Error getting coaches:", error);
+        res.status(500).json({ message: "Failed to retrieve coaches", error: error.message });
     }
-
-    if (category) {
-      coaches = coaches.filter(c =>
-        c.category && c.category.toLowerCase().includes(category.toLowerCase())
-      );
-    }
-
-    if (rating) {
-      // Ensure rating exists and is a number before filtering
-      coaches = coaches.filter(c => typeof c.rating === 'number' && c.rating >= Number(rating));
-    }
-
-    // ---- SORTING LOGIC ----
-    const sortField = sort || 'id'; // 'id' will be the Firestore document ID now
-
-    coaches.sort((a, b) => {
-      const valA = typeof a[sortField] === 'string' ? a[sortField].toLowerCase() : a[sortField];
-      const valB = typeof b[sortField] === 'string' ? b[sortField].toLowerCase() : b[sortField];
-
-      if (valA < valB) return order === 'asc' ? -1 : 1;
-      if (valA > valB) return order === 'asc' ? 1 : -1;
-      return 0;
-    });
-
-    // ---- PAGINATION LOGIC ----
-    const pageNum = Number(page);
-    const limitNum = Number(limit);
-    const startIndex = (pageNum - 1) * limitNum;
-    const endIndex = startIndex + limitNum;
-
-    const paginated = coaches.slice(startIndex, endIndex);
-
-    // ---- META INFO ----
-    const totalItems = coaches.length;
-    const totalPages = Math.ceil(totalItems / limitNum);
-
-    res.json({
-      page: pageNum,
-      limit: limitNum,
-      totalItems,
-      totalPages,
-      sortBy: sortField,
-      order,
-      data: paginated
-    });
-  } catch (error) {
-    console.error("Error getting coaches:", error);
-    res.status(500).json({ message: "Failed to retrieve coaches", error: error.message });
-  }
 };
 
-// ✅ GET single coach
-const getCoachById = async (req, res) => { // Made async
-  try {
-    const coachId = req.params.id; // The ID from the URL parameter
+/**
+ * @desc Get single coach by ID
+ * @route GET /api/coaches/:id
+ * @access Public
+ */
+const getCoachById = async (req, res) => {
+    try {
+        const coachId = req.params.id; 
 
-    // Directly get the coach document from Firestore by its ID
-    const docRef = database.collection(COACHES_COLLECTION).doc(coachId);
-    const doc = await docRef.get();
+        // 1. Get the reference to the specific coach node
+        const coachRef = database.ref(`${COACHES_COLLECTION}/${coachId}`);
+        
+        // 2. Fetch the data once
+        const snapshot = await coachRef.once('value');
 
-    if (!doc.exists) {
-      return res.status(404).json({ message: 'Coach not found' });
+        if (!snapshot.exists()) {
+            return res.status(404).json({ message: 'Coach not found' });
+        }
+
+        // 3. Return the data including the RTDB key as 'id'
+        res.json({ id: snapshot.key, ...snapshot.val() }); 
+    } catch (error) {
+        console.error("Error getting coach by ID:", error);
+        res.status(500).json({ message: "Failed to retrieve coach", error: error.message });
+    }
+};
+
+/**
+ * @desc Add a new coach
+ * @route POST /api/coaches
+ * @access Private (e.g., requires admin auth)
+ */
+const addCoach = async (req, res) => { 
+    const { name, email, category, rating, status } = req.body;
+    if (!name || !email) {
+        return res.status(400).json({ message: 'Name and Email are required' });
     }
 
-    res.json({ id: doc.id, ...doc.data() }); // Include the Firestore ID
-  } catch (error) {
-    console.error("Error getting coach by ID:", error);
-    res.status(500).json({ message: "Failed to retrieve coach", error: error.message });
-  }
+    try {
+        const newCoachData = {
+            name,
+            email,
+            category: category || 'General',
+            rating: Number(rating) || 0, // Ensure rating is a number
+            status: status || 'active',
+            createdAt: new Date().toISOString(), // Add a timestamp
+        };
+
+        // 1. Use .push() on the collection ref to auto-generate a unique key
+        const newCoachRef = database.ref(COACHES_COLLECTION).push(newCoachData);
+
+        // 2. The key generated by push() is the new ID
+        const addedCoach = { 
+            id: newCoachRef.key, 
+            ...newCoachData 
+        };
+
+        res.status(201).json(addedCoach);
+    } catch (error) {
+        console.error("Error adding coach:", error);
+        res.status(500).json({ message: "Failed to add coach", error: error.message });
+    }
 };
 
-// ✅ POST new coach
-const addCoach = async (req, res) => { // Made async
-  const { name, email, category, rating, status } = req.body;
-  if (!name || !email) {
-    return res.status(400).json({ message: 'Name and Email are required' });
-  }
-
-  try {
-    const newCoachData = {
-      name,
-      email,
-      category: category || 'General',
-      rating: Number(rating) || 0, // Ensure rating is a number
-      status: status || 'active',
-      // createdAt is handled by writeData internally with serverTimestamp
-    };
-
-    // Use the writeData function to add the new coach directly to Firestore
-    // writeData returns the added coach object including its new Firestore ID
-    const addedCoach = await writeData(newCoachData);
-
-    res.status(201).json(addedCoach);
-  } catch (error) {
-    console.error("Error adding coach:", error);
-    res.status(500).json({ message: "Failed to add coach", error: error.message });
-  }
-};
-// ✅ PUT update coach (fixed)
+/**
+ * @desc Update an existing coach
+ * @route PUT /api/coaches/:id
+ * @access Private
+ */
 const updateCoach = async (req, res) => {
-  try {
-    const coachId = req.params.id; // Ensure this is a string or number from the URL
-    const updatedData = req.body;
+    try {
+        const coachId = req.params.id; 
+        const updatedData = req.body;
 
-    if (!coachId || isNaN(Number(coachId))) {
-      return res.status(400).json({ message: "Invalid coach ID" });
+        if (!coachId) {
+            return res.status(400).json({ message: "Invalid coach ID" });
+        }
+
+        const coachRef = database.ref(`${COACHES_COLLECTION}/${coachId}`);
+
+        // Check if the coach exists before updating
+        const snapshot = await coachRef.once("value");
+        if (!snapshot.exists()) {
+            return res.status(404).json({ message: "Coach not found" });
+        }
+
+        // Use update to merge new data into the existing node
+        await coachRef.update(updatedData);
+
+        // Optionally fetch and return the updated data
+        const updatedSnapshot = await coachRef.once("value");
+        res.json({
+            message: `Coach ${coachId} updated successfully.`,
+            updatedCoach: { id: updatedSnapshot.key, ...updatedSnapshot.val() },
+        });
+    } catch (error) {
+        console.error("Error updating coach:", error);
+        res
+            .status(500)
+            .json({ message: "Failed to update coach", error: error.message });
     }
-
-    const coachRef = database.ref(`coaches/${coachId}`);
-
-    // Check if the coach exists before updating
-    const snapshot = await coachRef.once("value");
-    if (!snapshot.exists()) {
-      return res.status(404).json({ message: "Coach not found" });
-    }
-
-    await coachRef.update(updatedData);
-
-    // Optionally fetch updated data
-    const updatedSnapshot = await coachRef.once("value");
-    res.json({
-      message: `Coach ${coachId} updated successfully.`,
-      updatedCoach: updatedSnapshot.val(),
-    });
-  } catch (error) {
-    console.error("Error updating coach:", error);
-    res
-      .status(500)
-      .json({ message: "Failed to update coach", error: error.message });
-  }
 };
 
-// ✅ DELETE coach (Realtime Database version)
+/**
+ * @desc Delete a coach
+ * @route DELETE /api/coaches/:id
+ * @access Private
+ */
 const deleteCoach = async (req, res) => {
-  try {
-    const coachId = req.params.id;
+    try {
+        const coachId = req.params.id;
 
-    if (!coachId || isNaN(Number(coachId))) {
-      return res.status(400).json({ message: "Invalid coach ID" });
+        if (!coachId) {
+            return res.status(400).json({ message: "Invalid coach ID" });
+        }
+
+        const coachRef = database.ref(`${COACHES_COLLECTION}/${coachId}`);
+
+        // Check if the coach exists before deleting
+        const snapshot = await coachRef.once("value");
+        if (!snapshot.exists()) {
+            return res.status(404).json({ message: "Coach not found" });
+        }
+
+        // Use remove() to delete the node
+        await coachRef.remove();
+        res.json({ message: `Coach ${coachId} deleted successfully.` });
+    } catch (error) {
+        console.error("Error deleting coach:", error);
+        res
+            .status(500)
+            .json({ message: "Failed to delete coach", error: error.message });
     }
-
-    const coachRef = database.ref(`coaches/${coachId}`);
-
-    const snapshot = await coachRef.once("value");
-    if (!snapshot.exists()) {
-      return res.status(404).json({ message: "Coach not found" });
-    }
-
-    await coachRef.remove();
-    res.json({ message: `Coach ${coachId} deleted successfully.` });
-  } catch (error) {
-    console.error("Error deleting coach:", error);
-    res
-      .status(500)
-      .json({ message: "Failed to delete coach", error: error.message });
-  }
 };
 
 
 module.exports = {
-  getCoaches,
-  getCoachById,
-  addCoach,
-  updateCoach,
-  deleteCoach
+    getCoaches,
+    getCoachById,
+    addCoach,
+    updateCoach,
+    deleteCoach
 };

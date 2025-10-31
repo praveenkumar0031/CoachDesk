@@ -1,4 +1,6 @@
 import React, { useEffect, useState } from "react";
+import Loading from "../components/Loading";
+
 import {
   getCoaches,
   addCoach,
@@ -28,11 +30,10 @@ const Dashboard: React.FC = () => {
   });
   const [showForm, setShowForm] = useState(false);
   const [editCoach, setEditCoach] = useState<Coach | null>(null);
-
-  // Search state
+  const [loading, setLoading] = useState(false);
   const [searchId, setSearchId] = useState("");
 
-  // Filter options
+  // ---- Filter Options ----
   const statusOptions = [
     { value: "", label: "All Status" },
     { value: "active", label: "Active" },
@@ -55,27 +56,29 @@ const Dashboard: React.FC = () => {
     label: `${num}`,
   }));
 
-  // Dynamic categories → built after fetching
   const categoryOptions = [
     { value: "", label: "All Categories" },
     ...categories.map((cat) => ({ value: cat, label: cat })),
   ];
 
-  // Fetch all coaches
+  // ✅ Fetch all coaches (with loader)
   const fetchCoaches = async () => {
+    setLoading(true);
     try {
       const res = await getCoaches(filters);
       const { data, totalItems, totalPages, page } = res.data;
       setCoaches(data || []);
       setMeta({ totalItems, totalPages, page });
 
-      // Update category list dynamically
+      // Update dynamic categories
       const foundCats = data.map((coach: Coach) => coach.category);
       setCategories((prev) =>
         Array.from(new Set([...prev, ...foundCats].filter(Boolean)))
       );
     } catch (error) {
       console.error("Error fetching coaches:", error);
+    } finally {
+      setLoading(false); // ✅ Stop loader after fetch
     }
   };
 
@@ -86,11 +89,14 @@ const Dashboard: React.FC = () => {
 
   const handleDelete = async (id: number) => {
     if (!window.confirm("Delete this coach?")) return;
+    setLoading(true);
     await deleteCoach(id);
-    fetchCoaches();
+    await fetchCoaches();
+    setLoading(false);
   };
 
   const handleSave = async (data: Partial<Coach>) => {
+    setLoading(true);
     try {
       if (editCoach) {
         await updateCoach(editCoach.id, data);
@@ -104,9 +110,11 @@ const Dashboard: React.FC = () => {
 
       setShowForm(false);
       setEditCoach(null);
-      fetchCoaches();
+      await fetchCoaches();
     } catch (error) {
       console.error("Save failed:", error);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -125,22 +133,30 @@ const Dashboard: React.FC = () => {
       fetchCoaches();
       return;
     }
+    setLoading(true);
     try {
       const res = await getCoachById(Number(searchId));
       setCoaches([res.data]);
       setMeta({ page: 1, totalPages: 1, totalItems: 1 });
     } catch (err) {
       setCoaches([]);
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <div className="p-6">
+    <div className="p-6 relative min-h-screen">
+      {loading && (
+        <div className="absolute inset-0 bg-white/70 flex items-center justify-center z-50">
+          <Loading />
+        </div>
+      )}
+
       <h1 className="text-2xl font-bold mb-4">Coach Management</h1>
 
       {/* 🔍 Filter Bar */}
       <div className="flex flex-wrap gap-3 mb-4 items-center">
-        {/* Category Filter */}
         <Filter
           options={categoryOptions}
           defaultLabel="All Categories"
@@ -149,7 +165,6 @@ const Dashboard: React.FC = () => {
           }
         />
 
-        {/* Status Filter */}
         <Filter
           options={statusOptions}
           defaultLabel="All Status"
@@ -158,7 +173,6 @@ const Dashboard: React.FC = () => {
           }
         />
 
-        {/* Sort Filter */}
         <Filter
           options={sortOptions}
           defaultLabel="Sort by ID"
@@ -167,7 +181,6 @@ const Dashboard: React.FC = () => {
           }
         />
 
-        {/* Order Filter */}
         <Filter
           options={orderOptions}
           defaultLabel="Ascending ↑"
@@ -175,8 +188,6 @@ const Dashboard: React.FC = () => {
             setFilters((prev) => ({ ...prev, order: String(opt.value), page: 1 }))
           }
         />
-
-        
 
         {/* ➕ Add Coach */}
         <button
@@ -226,21 +237,25 @@ const Dashboard: React.FC = () => {
       </div>
 
       {/* 🧾 Table */}
-      <CoachTable
-        coaches={coaches}
-        onEdit={(coach) => {
-          setEditCoach(coach);
-          setShowForm(true);
-        }}
-        onDelete={handleDelete}
-        onStatusChange={async (id, newStatus) => {
-          await updateCoach(id, { status: newStatus });
-          fetchCoaches();
-        }}
-      />
+      {!loading && coaches.length > 0 ? (
+        <CoachTable
+          coaches={coaches}
+          onEdit={(coach) => {
+            setEditCoach(coach);
+            setShowForm(true);
+          }}
+          onDelete={handleDelete}
+          onStatusChange={async (id, newStatus) => {
+            await updateCoach(id, { status: newStatus });
+            fetchCoaches();
+          }}
+        />
+      ) : (
+        !loading && <p className="text-center text-gray-500 mt-10">No coaches found.</p>
+      )}
 
-      {/* 📄 Pagination Controls */}
-      {!searchId && (
+      {/* 📄 Pagination */}
+      {!searchId && !loading && (
         <div className="flex justify-between items-center mt-6">
           <button
             disabled={filters.page === 1}
@@ -252,19 +267,17 @@ const Dashboard: React.FC = () => {
           <p className="text-gray-700 align-center">
             Page {meta.page} of {meta.totalPages} ({meta.totalItems} total)
           </p>
-          {/* Limit Filter */}
-        <Pagination
-  options={limitOptions}
-  defaultValue={5}
-  onSelect={(opt) =>
-    setFilters((prev) => ({
-      ...prev,
-      limit: Number(opt.value),
-      page: 1,
-    }))
-  }
-/>
-
+          <Pagination
+            options={limitOptions}
+            defaultValue={5}
+            onSelect={(opt) =>
+              setFilters((prev) => ({
+                ...prev,
+                limit: Number(opt.value),
+                page: 1,
+              }))
+            }
+          />
           <button
             disabled={filters.page === meta.totalPages}
             onClick={() => handlePageChange("next")}
