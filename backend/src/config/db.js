@@ -1,15 +1,12 @@
 const admin = require('firebase-admin');
 const path = require('path');
 require('dotenv').config();
-// NOTE: Replace './config/serviceAccountKey.json' with the actual path
-// to the JSON file you downloaded.
-const serviceAccount = require('./serviceAccountKey.json');
+
+const serviceAccount = JSON.parse(process.env.FIREBASE_CREDENTIALS);
 const { env } = require('process');
 
-// Get a reference to the Realtime Database service - Declare 'database' globally within the module scope.
-let database; // Changed 'db' to 'database' to reflect RTDB more clearly
 
-// --- Initialization ---
+let database; 
 try {
   // Check if the app is already initialized to prevent errors in hot-reload environments
   if (admin.apps.length === 0) {
@@ -17,24 +14,24 @@ try {
       
       credential: admin.credential.cert(serviceAccount),
 
-      databaseURL:process.env.FIREBASE_URI 
+      databaseURL: process.env.FIREBASE_URI 
     });
     console.log("Firebase Admin SDK initialized successfully for Realtime Database.");
   } else {
     console.log("Firebase app already initialized. Reusing existing instance.");
   }
 
-  // Assign 'database' AFTER successful initialization, getting the Realtime Database service
+  
   database = admin.database(); // <-- KEY CHANGE: Get the Realtime Database service here!
 
 } catch (error) {
-  // For any other error during initialization, log it and re-throw
+  
   console.error("Firebase initialization failed:", error);
   throw error;
 }
 
-// Define the root path where your coach data is stored in Realtime Database
-const COACHES_PATH = 'coaches'; // Changed 'COACHES_COLLECTION' to 'COACHES_PATH' for RTDB nomenclature
+
+const COACHES_PATH = 'coaches'; 
 
 const readData = async () => {
   try {
@@ -63,16 +60,6 @@ const readData = async () => {
 };
 
 
-// --- Adapted writeData for Realtime Database (for adding new data with auto-generated ID) ---
-/**
- * Writes new coach data to the 'coaches' path, generating a unique key.
- * This function is designed to *add* new records.
- * For updating existing records, you would use `database.ref('coaches/' + coachId).update(...)`
- * or `database.ref('coaches/' + coachId).set(...)`.
- * @param {Object} coachData The data for the new coach.
- * @returns {Promise<Object>} A promise that resolves to the newly added coach object,
- *                             including its generated key (ID).
- */
 const writeData = async (coachData) => {
   try {
     const coachesRef = database.ref(COACHES_PATH);
