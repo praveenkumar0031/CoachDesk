@@ -16,11 +16,7 @@
     "dotenv": "^17.2.3",
     "express": "^5.1.0",
     "firebase": "^12.5.0",
-    "firebase-admin": "^13.5.0",
-    "fs": "^0.0.1-security",
-    "mongoose": "^8.19.2",
-    "mongoose-sequence": "^6.0.1",
-    "uuid": "^13.0.0"
+    "firebase-admin": "^13.5.0"
   },
   "devDependencies": {
     "nodemon": "^3.1.10"
