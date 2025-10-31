@@ -18,7 +18,7 @@ const CoachTable: React.FC<Props> = ({
 }) => {
   return (
     <table className="w-full border rounded text-center">
-      <thead className="bg-gradient-to-r from-blue-100 to-indigo-100">
+      <thead className="bg-linear-to-r from-blue-100 to-indigo-100">
         <tr>
           <th className="border p-2">ID</th>
           <th className="border p-2">Name</th>

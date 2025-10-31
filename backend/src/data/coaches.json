@@ -5,7 +5,7 @@
     "email": "john@example.com",
     "category": "Fitness",
     "rating": 4,
-    "status": "active",
+    "status": "inactive",
     "createdAt": "2025-10-29T08:00:00Z"
   },
   {
@@ -14,7 +14,7 @@
     "email": "john@example.com",
     "category": "skate",
     "rating": "5",
-    "status": "active",
+    "status": "inactive",
     "createdAt": "2025-10-29T12:00:00Z"
   },
   {
