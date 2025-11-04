@@ -1,7 +1,5 @@
 import React, { useEffect, useState } from "react";
-import Loading from "../components/Loading";
 import log from "../assets/log.jpeg";
-
 import {
   getCoaches,
   addCoach,
@@ -31,8 +29,10 @@ const Dashboard: React.FC = () => {
   });
   const [showForm, setShowForm] = useState(false);
   const [editCoach, setEditCoach] = useState<Coach | null>(null);
-  const [loading, setLoading] = useState(false);
   const [searchId, setSearchId] = useState("");
+  const [loadingId, setLoadingId] = useState<number | null>(null);
+  const [deletingId, setDeletingId] = useState<number | null>(null);
+  const [pageLoading, setPageLoading] = useState(false); // ✅ Pagination loader
 
   // ---- Filter Options ----
   const statusOptions = [
@@ -62,42 +62,44 @@ const Dashboard: React.FC = () => {
     ...categories.map((cat) => ({ value: cat, label: cat })),
   ];
 
-  // Fetch all coaches (with loader)
+  // ✅ Fetch all coaches
   const fetchCoaches = async () => {
-    setLoading(true);
     try {
       const res = await getCoaches(filters);
       const { data, totalItems, totalPages, page } = res.data;
       setCoaches(data || []);
       setMeta({ totalItems, totalPages, page });
 
-      // Update dynamic categories
+      // ✅ update unique categories dynamically
       const foundCats = data.map((coach: Coach) => coach.category);
       setCategories((prev) =>
         Array.from(new Set([...prev, ...foundCats].filter(Boolean)))
       );
     } catch (error) {
       console.error("Error fetching coaches:", error);
-    } finally {
-      setLoading(false); //  Stop loader after fetch
     }
   };
 
   useEffect(() => {
     fetchCoaches();
-    
   }, [filters]);
 
+  // ✅ Delete Coach
   const handleDelete = async (id: number) => {
     if (!window.confirm("Delete this coach?")) return;
-    setLoading(true);
-    await deleteCoach(id);
-    await fetchCoaches();
-    setLoading(false);
+    setDeletingId(id);
+    try {
+      await deleteCoach(id);
+      await fetchCoaches();
+    } catch (error) {
+      console.error("Delete failed:", error);
+    } finally {
+      setDeletingId(null);
+    }
   };
 
+  // ✅ Add / Update Coach
   const handleSave = async (data: Partial<Coach>) => {
-    setLoading(true);
     try {
       if (editCoach) {
         await updateCoach(editCoach.id, data);
@@ -105,6 +107,7 @@ const Dashboard: React.FC = () => {
         await addCoach(data as Coach);
       }
 
+      // ✅ Add new category dynamically if needed
       if (data.category && !categories.includes(data.category)) {
         setCategories((prev) => [...prev, data.category!]);
       }
@@ -114,58 +117,50 @@ const Dashboard: React.FC = () => {
       await fetchCoaches();
     } catch (error) {
       console.error("Save failed:", error);
-    } finally {
-      setLoading(false);
     }
   };
 
-  const handlePageChange = (direction: "next" | "prev") => {
-    setFilters((prev) => {
-      const newPage =
-        direction === "next"
-          ? Math.min(prev.page + 1, meta.totalPages)
-          : Math.max(prev.page - 1, 1);
-      return { ...prev, page: newPage };
-    });
+  // ✅ Pagination with loader
+  const handlePageChange = async (direction: "next" | "prev") => {
+    setPageLoading(true);
+    const newPage =
+      direction === "next"
+        ? Math.min(filters.page + 1, meta.totalPages)
+        : Math.max(filters.page - 1, 1);
+
+    setFilters((prev) => ({ ...prev, page: newPage }));
+    await fetchCoaches();
+    setPageLoading(false);
   };
 
+  // ✅ Search by ID
   const handleSearchById = async () => {
     if (!searchId.trim()) {
       fetchCoaches();
       return;
     }
-    setLoading(true);
     try {
       const res = await getCoachById(Number(searchId));
       setCoaches([res.data]);
       setMeta({ page: 1, totalPages: 1, totalItems: 1 });
     } catch (err) {
       setCoaches([]);
-    } finally {
-      setLoading(false);
     }
   };
 
   return (
     <div className="p-6 relative min-h-screen">
-      {loading && (
-        <div className="absolute inset-0 bg-white/70 flex items-center justify-center z-50">
-          <Loading />
-        </div>
-      )}
-
-      
+      {/* 🧑‍🏫 Header */}
       <div className="flex items-center gap-3 mb-6">
-  <img
-    src={log}
-    alt="CoachDesk Logo"
-    className="w-12 h-12 rounded-full border border-gray-300 shadow-sm"
-  />
-  <h1 className="text-2xl font-bold text-blue-700 flex items-center">
-    Coach Desk
-  </h1>
-</div>
-
+        <img
+          src={log}
+          alt="CoachDesk Logo"
+          className="w-12 h-12 rounded-full border border-gray-300 shadow-sm"
+        />
+        <h1 className="text-2xl font-bold text-blue-700 flex items-center">
+          Coach Desk
+        </h1>
+      </div>
 
       {/* 🔍 Filter Bar */}
       <div className="flex flex-wrap gap-3 mb-4 items-center">
@@ -173,7 +168,11 @@ const Dashboard: React.FC = () => {
           options={categoryOptions}
           defaultLabel="All Categories"
           onSelect={(opt) =>
-            setFilters((prev) => ({ ...prev, category: String(opt.value), page: 1 }))
+            setFilters((prev) => ({
+              ...prev,
+              category: String(opt.value),
+              page: 1,
+            }))
           }
         />
 
@@ -181,7 +180,11 @@ const Dashboard: React.FC = () => {
           options={statusOptions}
           defaultLabel="All Status"
           onSelect={(opt) =>
-            setFilters((prev) => ({ ...prev, status: String(opt.value), page: 1 }))
+            setFilters((prev) => ({
+              ...prev,
+              status: String(opt.value),
+              page: 1,
+            }))
           }
         />
 
@@ -189,7 +192,11 @@ const Dashboard: React.FC = () => {
           options={sortOptions}
           defaultLabel="Sort by ID"
           onSelect={(opt) =>
-            setFilters((prev) => ({ ...prev, sort: String(opt.value), page: 1 }))
+            setFilters((prev) => ({
+              ...prev,
+              sort: String(opt.value),
+              page: 1,
+            }))
           }
         />
 
@@ -197,13 +204,20 @@ const Dashboard: React.FC = () => {
           options={orderOptions}
           defaultLabel="Ascending ↑"
           onSelect={(opt) =>
-            setFilters((prev) => ({ ...prev, order: String(opt.value), page: 1 }))
+            setFilters((prev) => ({
+              ...prev,
+              order: String(opt.value),
+              page: 1,
+            }))
           }
         />
 
         {/* ➕ Add Coach */}
         <button
-          onClick={() => setShowForm(true)}
+          onClick={() => {
+            setEditCoach(null);
+            setShowForm(true);
+          }}
           className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
         >
           + Add Coach
@@ -249,7 +263,7 @@ const Dashboard: React.FC = () => {
       </div>
 
       {/* 🧾 Table */}
-      {!loading && coaches.length > 0 ? (
+      {coaches.length > 0 ? (
         <CoachTable
           coaches={coaches}
           onEdit={(coach) => {
@@ -258,27 +272,42 @@ const Dashboard: React.FC = () => {
           }}
           onDelete={handleDelete}
           onStatusChange={async (id, newStatus) => {
-            await updateCoach(id, { status: newStatus });
-            fetchCoaches();
+            setLoadingId(id);
+            try {
+              await updateCoach(id, { status: newStatus });
+              await fetchCoaches();
+            } finally {
+              setLoadingId(null);
+            }
           }}
+          loadingId={loadingId}
+          deletingId={deletingId}
         />
       ) : (
-        !loading && <p className="text-center text-gray-500 mt-10">No coaches found.</p>
+        <p className="text-center text-gray-500 mt-10">No coaches found.</p>
       )}
 
       {/* 📄 Pagination */}
-      {!searchId && !loading && (
+      {!searchId && (
         <div className="flex justify-between items-center mt-6">
           <button
-            disabled={filters.page === 1}
+            disabled={filters.page === 1 || pageLoading}
             onClick={() => handlePageChange("prev")}
-            className="px-4 py-2 bg-gray-200 rounded disabled:opacity-50"
+            className={`px-4 py-2 rounded flex items-center justify-center gap-2 min-w-[90px] transition
+              ${pageLoading ? "bg-gray-300 cursor-wait" : "bg-gray-200 hover:bg-gray-300"}
+            `}
           >
-            ← Prev
+            {pageLoading ? (
+              <span className="w-4 h-4 border-2 border-gray-600 border-t-transparent rounded-full animate-spin"></span>
+            ) : (
+              "← Prev"
+            )}
           </button>
-          <p className="text-gray-700 align-center">
+
+          <p className="text-gray-700">
             Page {meta.page} of {meta.totalPages} ({meta.totalItems} total)
           </p>
+
           <Pagination
             options={limitOptions}
             defaultValue={5}
@@ -290,12 +319,19 @@ const Dashboard: React.FC = () => {
               }))
             }
           />
+
           <button
-            disabled={filters.page === meta.totalPages}
+            disabled={filters.page === meta.totalPages || pageLoading}
             onClick={() => handlePageChange("next")}
-            className="px-4 py-2 bg-gray-200 rounded disabled:opacity-50"
+            className={`px-4 py-2 rounded flex items-center justify-center gap-2 min-w-[90px] transition
+              ${pageLoading ? "bg-gray-300 cursor-wait" : "bg-gray-200 hover:bg-gray-300"}
+            `}
           >
-            Next →
+            {pageLoading ? (
+              <span className="w-4 h-4 border-2 border-gray-600 border-t-transparent rounded-full animate-spin"></span>
+            ) : (
+              "Next →"
+            )}
           </button>
         </div>
       )}

@@ -3,7 +3,7 @@ import type { Coach } from "../types/coach";
 
 interface Props {
   initialData?: Coach | null;
-  onSubmit: (data: Partial<Coach>) => void;
+  onSubmit: (data: Partial<Coach>) => Promise<void> | void; // allow async
   onClose: () => void;
 }
 
@@ -14,6 +14,7 @@ const CoachForm: React.FC<Props> = ({ initialData, onSubmit, onClose }) => {
 
   const [isCustomCategory, setIsCustomCategory] = useState(false);
   const [customCategory, setCustomCategory] = useState("");
+  const [isSaving, setIsSaving] = useState(false); // ✅ loading state for Save button
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
@@ -39,9 +40,14 @@ const CoachForm: React.FC<Props> = ({ initialData, onSubmit, onClose }) => {
     setFormData((prev) => ({ ...prev, category: value }));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    onSubmit(formData);
+    try {
+      setIsSaving(true);
+      await onSubmit(formData);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -93,7 +99,7 @@ const CoachForm: React.FC<Props> = ({ initialData, onSubmit, onClose }) => {
           <option value="Other">Other</option>
         </select>
 
-        {/* Custom Category Field (shows when “Other” selected) */}
+        {/* Custom Category Field */}
         {isCustomCategory && (
           <input
             type="text"
@@ -131,10 +137,21 @@ const CoachForm: React.FC<Props> = ({ initialData, onSubmit, onClose }) => {
         <div className="flex justify-between mt-4">
           <button
             type="submit"
-            className="bg-blue-600 text-white px-5 py-2 rounded hover:bg-blue-700 transition"
+            disabled={isSaving}
+            className={`px-5 py-2 rounded text-white flex justify-center items-center transition w-28
+              ${
+                isSaving
+                  ? "bg-blue-400 cursor-wait"
+                  : "bg-blue-600 hover:bg-blue-700"
+              }`}
           >
-            Save
+            {isSaving ? (
+              <span className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+            ) : (
+              "Save"
+            )}
           </button>
+
           <button
             type="button"
             onClick={onClose}
